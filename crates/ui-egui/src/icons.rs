@@ -107,10 +107,26 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
         }
         // Font
         "bold" => pen.text(10.0, 10.5, 15.0, "B", c, true),
-        "italic" => pen.text(10.0, 10.5, 15.0, "I", c, false),
+        "italic" => {
+            // A true slanted I: serifs top and bottom, stem leaning right.
+            pen.line(&[(9.0, 4.0), (13.5, 4.0)]);
+            pen.line(&[(5.5, 16.0), (10.0, 16.0)]);
+            pen.line(&[(11.25, 4.0), (8.25, 16.0)]);
+        }
         "underline" => {
-            pen.text(10.0, 9.0, 14.0, "U", c, false);
-            pen.line(&[(5.0, 17.0), (15.0, 17.0)]);
+            // A stroked U (same weight as the rest of the set) over a rule.
+            pen.line(&[
+                (6.0, 3.5),
+                (6.0, 10.0),
+                (6.54, 12.0),
+                (8.0, 13.46),
+                (10.0, 14.0),
+                (12.0, 13.46),
+                (13.46, 12.0),
+                (14.0, 10.0),
+                (14.0, 3.5),
+            ]);
+            pen.line_c(&[(5.0, 17.5), (15.0, 17.5)], a);
         }
         "strike" => {
             pen.text(10.0, 10.0, 12.0, "ab", c, false);
@@ -163,7 +179,11 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.text(10.0, 10.0, 15.0, "A", a, true);
             pen.text(10.5, 10.5, 15.0, "A", Color32::from_rgba_unmultiplied(0, 0, 0, 40), true);
         }
-        "fontdialog" => pen.line(&[(13.0, 13.0), (17.0, 17.0), (17.0, 13.0)]),
+        "fontdialog" => {
+            // Dialog launcher: a diagonal arrow out of a corner.
+            pen.line(&[(4.5, 4.5), (15.0, 15.0)]);
+            pen.line_c(&[(15.5, 8.5), (15.5, 15.5), (8.5, 15.5)], a);
+        }
         // Paragraph
         "bullets" => {
             for (i, y) in [5.0, 10.0, 15.0].iter().enumerate() {
@@ -240,17 +260,11 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.frect(2.0, 16.5, 18.0, 19.0, yellow);
         }
         "borders" => {
-            for y in [3.0, 10.0, 17.0] {
-                for x in [3.0, 6.5, 10.0, 13.5, 17.0] {
-                    pen.fcircle(x, y, 0.6, c);
-                }
-            }
-            for x in [3.0, 10.0, 17.0] {
-                for y in [6.5, 13.5] {
-                    pen.fcircle(x, y, 0.6, c);
-                }
-            }
-            pen.line_c(&[(3.0, 17.0), (17.0, 17.0)], a);
+            // A cell grid; the bottom edge is the accent border.
+            pen.line(&[(3.5, 16.5), (3.5, 3.5), (16.5, 3.5), (16.5, 16.5)]);
+            pen.line(&[(3.5, 10.0), (16.5, 10.0)]);
+            pen.line(&[(10.0, 3.5), (10.0, 16.5)]);
+            pen.line_c(&[(3.5, 16.5), (16.5, 16.5)], a);
         }
         // Editing
         "find" => {
@@ -264,7 +278,8 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line(&[(14.5, 7.0), (16.0, 8.5), (17.5, 7.0)]);
         }
         "select" => {
-            pen.fill(&[(5.0, 3.0), (5.0, 16.0), (8.0, 13.0), (10.5, 18.0), (12.5, 17.0), (10.0, 12.0), (14.0, 12.0)], c);
+            // Pointer outline, matching the stroke weight of the set.
+            pen.closed(&[(5.0, 3.0), (5.0, 16.0), (8.0, 13.0), (10.5, 18.0), (12.5, 17.0), (10.0, 12.0), (14.0, 12.0)], c);
         }
         "dictate" => {
             pen.rect(7.5, 2.5, 12.5, 12.0, c);

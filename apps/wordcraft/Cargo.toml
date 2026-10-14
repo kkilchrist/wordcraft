@@ -44,6 +44,9 @@ objc2 = "0.6"
 # Closing the window must quit through NSApplication rather than by dropping the NSWindow
 # inside the AppKit run loop (see `schedule_macos_terminate`).
 dispatch2 = "0.3"
+# The native menu bar (NSMenu) mirroring the ribbon, behind a safe API (our workspace forbids
+# unsafe). The same crate and version as the upstream menu-bar PR (#1414).
+muda = { version = "0.21.2", default-features = false }
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 winit = { version = "0.30", default-features = false, features = ["x11"] }

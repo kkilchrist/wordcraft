@@ -456,6 +456,11 @@ pub struct ControlInfo {
 }
 
 /// A tab's badgeable controls in drawing order, for the widgets to find their own badges.
+/// A tab's controls in drawing order, as the menu bar mirrors them (`menu_bar`).
+pub fn menu_controls(tab: &str) -> Vec<(&'static str, Target)> {
+    controls(tab).into_iter().map(|c| (c.tip, c.target)).collect()
+}
+
 pub fn controls_public(tab: &str) -> Vec<ControlInfo> {
     controls(tab)
         .into_iter()

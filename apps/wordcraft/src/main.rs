@@ -21,6 +21,8 @@ mod file_dialogs;
 #[cfg(any(target_os = "windows", test))]
 mod graphics;
 mod logging;
+#[cfg(target_os = "macos")]
+mod macos_menu;
 mod print;
 mod region;
 #[cfg(target_os = "macos")]
@@ -34,19 +36,22 @@ use wordcraft_ui_egui::{
 
 /// The app, the restored window geometry until the first frame has checked it, the control
 /// server's key file (removed on exit), the file dialogs the app asked for and, on macOS, the
-/// documents opened from Finder.
+/// documents opened from Finder and the menu bar.
 struct App(
     WordApp,
     Option<WindowGeometry>,
     Option<control_server::KeyFile>,
     file_dialogs::Launcher,
     #[cfg(target_os = "macos")] fmv_macos_events::Inbox,
+    #[cfg(target_os = "macos")] macos_menu::NativeMenu,
 );
 
 impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         apple_events::poll(&self.4, &mut self.0, ctx);
+        #[cfg(target_os = "macos")]
+        self.5.update(&mut self.0, ctx);
         self.0.logic(ctx);
         self.3.show(frame);
         let prev = self.0.ui.window;
@@ -366,6 +371,8 @@ fn main() -> eframe::Result {
                 dialogs,
                 #[cfg(target_os = "macos")]
                 apple_events.connect(&cc.egui_ctx),
+                #[cfg(target_os = "macos")]
+                macos_menu::NativeMenu::new(&cc.egui_ctx),
             )))
         }),
     )

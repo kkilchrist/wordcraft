@@ -200,6 +200,10 @@ pub struct Tokens {
     pub dark: bool,
     pub title_bar: Color32,
     pub ribbon: Color32,
+    /// macOS File screen sidebar (a neutral source list, as in Mac apps).
+    pub sidebar_bg: Color32,
+    /// The selected sidebar row (translucent, so it works on either sidebar colour).
+    pub sidebar_selected: Color32,
     pub tab_strip: Color32,
     pub canvas: Color32,
     pub panel: Color32,
@@ -246,6 +250,8 @@ impl Tokens {
             dark: false,
             title_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
             ribbon: Color32::from_rgb(0xF9, 0xF9, 0xF9),
+            sidebar_bg: Color32::from_rgb(0xEB, 0xEB, 0xEB),
+            sidebar_selected: Color32::from_rgba_unmultiplied(0, 0, 0, 0x14),
             tab_strip: Color32::from_rgb(0xF0, 0xF0, 0xF0),
             canvas: Color32::from_rgb(0xE6, 0xE6, 0xE6),
             panel: Color32::from_rgb(0xFA, 0xFA, 0xFA),
@@ -287,6 +293,8 @@ impl Tokens {
             dark: true,
             title_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
             ribbon: Color32::from_rgb(0x29, 0x29, 0x29),
+            sidebar_bg: Color32::from_rgb(0x2B, 0x2B, 0x2B),
+            sidebar_selected: Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 0x1A),
             tab_strip: Color32::from_rgb(0x1F, 0x1F, 0x1F),
             canvas: Color32::from_rgb(0x14, 0x14, 0x14),
             panel: Color32::from_rgb(0x26, 0x26, 0x26),

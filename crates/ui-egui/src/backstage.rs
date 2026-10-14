@@ -21,11 +21,19 @@ const PAGES: [(&str, &str); 9] = [
 pub fn show(app: &mut WordApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let mac = app.integrated_titlebar;
-    egui::Panel::left("backstage_nav")
+    // macOS gets a neutral source-list sidebar with dark text; Windows and Linux keep the blue column.
+    let (side_fill, ink, selected, hover) = if mac {
+        (t.sidebar_bg, t.text, t.sidebar_selected, t.sidebar_selected.gamma_multiply(0.5))
+    } else {
+        (APP_COLOR, egui::Color32::WHITE, egui::Color32::from_white_alpha(46), egui::Color32::from_white_alpha(26))
+    };
+    // Mac rows are 28 pt with a rounded highlight inset 8 pt from the sidebar edges.
+    let row_h = if mac { 28.0 } else { 38.0 };
+    let nav = egui::Panel::left("backstage_nav")
         .exact_size(200.0)
         // Fixed width, as in Word: without this egui shows a resize handle that does nothing (#502).
         .resizable(false)
-        .frame(egui::Frame::NONE.fill(APP_COLOR).inner_margin(egui::Margin { left: 0, right: 0, top: if mac { 0 } else { 12 }, bottom: 12 }))
+        .frame(egui::Frame::NONE.fill(side_fill).inner_margin(egui::Margin { left: 0, right: 0, top: if mac { 0 } else { 12 }, bottom: 12 }))
         .show(ui, |ui| {
             let back = if mac {
                 // macOS (#222): the Backstage covers the title bar, so its top band is the title
@@ -38,17 +46,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 // The chevron's stroke starts at the content edge.
                 let c = pos2(band.min.x + crate::chrome::MAC_CONTENT_LEFT + 3.0, band.center().y);
                 let resp = ui.interact(Rect::from_center_size(c, vec2(22.0, band.height())), ui.id().with("backstage_back"), Sense::click());
-                icons::paint(ui.painter(), Rect::from_center_size(c, vec2(18.0, 18.0)), "chevronLeft", egui::Color32::WHITE, egui::Color32::WHITE);
+                icons::paint(ui.painter(), Rect::from_center_size(c, vec2(18.0, 18.0)), "chevronLeft", ink, ink);
                 resp
             } else {
                 let (r, resp) = ui.allocate_exact_size(vec2(200.0, 40.0), Sense::click());
-                icons::paint(
-                    ui.painter(),
-                    Rect::from_center_size(pos2(r.min.x + 26.0, r.center().y), vec2(18.0, 18.0)),
-                    "chevronLeft",
-                    egui::Color32::WHITE,
-                    egui::Color32::WHITE,
-                );
+                icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 26.0, r.center().y), vec2(18.0, 18.0)), "chevronLeft", ink, ink);
                 resp
             };
             // Escape in the built-in file browser closes only the browser.
@@ -58,21 +60,21 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
             ui.add_space(if mac { 12.0 } else { 6.0 });
             for (id, label) in PAGES {
-                let (r, resp) = ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click());
+                let (r, resp) = ui.allocate_exact_size(vec2(200.0, row_h), Sense::click());
                 resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(label)));
                 let active = app.ui.backstage_page == id;
+                let (hl, radius) = if mac { (r.shrink2(vec2(8.0, 1.0)), 6.0) } else { (r, 0.0) };
                 if active {
-                    ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(46));
+                    ui.painter().rect_filled(hl, radius, selected);
                 } else if resp.hovered() {
-                    ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(26));
+                    ui.painter().rect_filled(hl, radius, hover);
                 }
-                ui.painter().text(
-                    pos2(r.min.x + 22.0, r.center().y),
-                    Align2::LEFT_CENTER,
-                    tl!(label),
-                    if active { semibold(14.0) } else { medium(14.0) },
-                    egui::Color32::WHITE,
-                );
+                let (pad, font) = if mac {
+                    (16.0, if active { semibold(13.0) } else { medium(13.0) })
+                } else {
+                    (22.0, if active { semibold(14.0) } else { medium(14.0) })
+                };
+                ui.painter().text(pos2(r.min.x + pad, r.center().y), Align2::LEFT_CENTER, tl!(label), font, ink);
                 if resp.clicked() {
                     match id {
                         // A document without a file goes to the Save As page (as in Word) instead
@@ -99,12 +101,14 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 for (label, id) in [("About", "about"), ("Discord community", "discord")] {
-                    let (r, resp) = ui.allocate_exact_size(vec2(200.0, 32.0), Sense::click());
+                    let (r, resp) = ui.allocate_exact_size(vec2(200.0, if mac { row_h } else { 32.0 }), Sense::click());
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tl!(label)));
+                    let (hl, radius) = if mac { (r.shrink2(vec2(8.0, 1.0)), 6.0) } else { (r, 0.0) };
                     if resp.hovered() {
-                        ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(26));
+                        ui.painter().rect_filled(hl, radius, hover);
                     }
-                    ui.painter().text(pos2(r.min.x + 22.0, r.center().y), Align2::LEFT_CENTER, tl!(label), regular(13.0), egui::Color32::WHITE);
+                    let pad = if mac { 16.0 } else { 22.0 };
+                    ui.painter().text(pos2(r.min.x + pad, r.center().y), Align2::LEFT_CENTER, tl!(label), regular(13.0), ink);
                     if resp.clicked() {
                         if id == "discord" {
                             let _ = app.run("ui.discord", json!({}));
@@ -115,6 +119,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             });
         });
+    if mac {
+        // A 1 pt rule between the sidebar and the content, as Mac apps draw it.
+        ui.painter().vline(nav.response.rect.max.x - 0.5, nav.response.rect.y_range(), Stroke::new(1.0, t.border));
+    }
     egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin::symmetric(40, 30))).show(ui, |ui| {
         egui::ScrollArea::vertical().show(ui, |ui| match app.ui.backstage_page.as_str() {
             "home" => home_page(app, ui),

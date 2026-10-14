@@ -2349,30 +2349,50 @@ fn body(app: &mut WordApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Do you want to save changes to {name}?"), &[("name", name)])).font(semibold(15.0)));
             ui.label(tl!("Your changes will be lost if you don't save them."));
             ui.add_space(8.0);
+            // macOS (HIG): Don't Save on the far left, then Cancel, then the default Save on the right.
+            // Elsewhere: Save, Don't Save, Cancel. Buttons are added right to left, so the first is rightmost.
+            let mac = cfg!(target_os = "macos");
             let buttons = ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let cancel = ui.button(tl!("Cancel"));
-                    let dont_save = ui.button(tl!("Don't Save"));
-                    let save = ui.add(crate::widgets::primary_button(ui, tl!("Save")));
-                    [(cancel, "cancel"), (dont_save, "dontSave"), (save, "save")]
+                    if mac {
+                        let save = ui.add(crate::widgets::primary_button(ui, tl!("Save")));
+                        let cancel = ui.button(tl!("Cancel"));
+                        let dont_save = ui.button(tl!("Don't Save"));
+                        vec![(save, "save"), (cancel, "cancel"), (dont_save, "dontSave")]
+                    } else {
+                        let cancel = ui.button(tl!("Cancel"));
+                        let dont_save = ui.button(tl!("Don't Save"));
+                        let save = ui.add(crate::widgets::primary_button(ui, tl!("Save")));
+                        vec![(cancel, "cancel"), (dont_save, "dontSave"), (save, "save")]
+                    }
                 })
                 .inner
             });
             let buttons = buttons.inner;
             // The keyboard alone answers, as in Word (#861): Save has focus when the prompt opens,
             // so Enter saves, and the arrow keys (egui's focus navigation) or Tab move between the
-            // buttons, shown as Save, Don't Save, Cancel.
+            // buttons.
             if ui.memory(|m| m.focused().is_none())
-                && let Some((save, _)) = buttons.get(2)
+                && let Some((save, _)) = buttons.iter().find(|(_, a)| *a == "save")
             {
                 save.request_focus();
             }
             // Enter clicks the focused button; it means Save only when none of them has focus.
             let focused = buttons.iter().any(|(b, _)| b.has_focus());
-            let answer = if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            let (escape, cmd_period, cmd_delete) = ui.input(|i| {
+                (
+                    i.key_pressed(egui::Key::Escape),
+                    i.modifiers.mac_cmd && i.key_pressed(egui::Key::Period),
+                    i.modifiers.mac_cmd && (i.key_pressed(egui::Key::D) || i.key_pressed(egui::Key::Backspace)),
+                )
+            });
+            let answer = if escape || (mac && cmd_period) {
                 Some("cancel")
             } else if let Some((_, a)) = buttons.iter().find(|(b, _)| b.clicked()) {
                 Some(*a)
+            } else if mac && cmd_delete {
+                // ⌘D and ⌘⌫ are macOS's Don't Save.
+                Some("dontSave")
             } else if !focused && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 Some("save")
             } else {

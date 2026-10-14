@@ -224,6 +224,8 @@ pub struct Tokens {
     pub ruler_tick: Color32,
     pub status_bar: Color32,
     pub selection: Color32,
+    /// Selection in a background window (macOS greys it, as Word and TextEdit do).
+    pub selection_inactive: Color32,
     /// Find › Reading Highlight.
     pub find_highlight: Color32,
     pub caret: Color32,
@@ -267,6 +269,7 @@ impl Tokens {
             ruler_tick: Color32::from_rgb(0x70, 0x70, 0x70),
             status_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
             selection: Color32::from_rgba_unmultiplied(0x3B, 0x5B, 0xDB, 0x48),
+            selection_inactive: Color32::from_rgba_unmultiplied(0, 0, 0, 0x1F),
             find_highlight: Color32::from_rgba_unmultiplied(0xFF, 0xE0, 0x3D, 0x90),
             caret: Color32::BLACK,
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x22),
@@ -308,6 +311,7 @@ impl Tokens {
             ruler_tick: Color32::from_rgb(0xA0, 0xA0, 0xA0),
             status_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
             selection: Color32::from_rgba_unmultiplied(0x7A, 0x93, 0xF0, 0x55),
+            selection_inactive: Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 0x26),
             find_highlight: Color32::from_rgba_unmultiplied(0xC8, 0xA8, 0x00, 0x70),
             caret: Color32::BLACK,
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x60),
@@ -323,6 +327,16 @@ impl Tokens {
     pub fn get(ctx: &egui::Context) -> Tokens {
         if ctx.global_style().visuals.dark_mode { Tokens::dark() } else { Tokens::light() }
     }
+}
+
+/// The selection colour for a document's selected text. macOS greys the selection while the
+/// window is in the background (`focused == Some(false)`); `None` counts as focused.
+pub fn selection_color(t: &Tokens, focused: Option<bool>) -> Color32 {
+    selection_color_on(t, focused, cfg!(target_os = "macos"))
+}
+
+fn selection_color_on(t: &Tokens, focused: Option<bool>, macos: bool) -> Color32 {
+    if macos && focused == Some(false) { t.selection_inactive } else { t.selection }
 }
 
 /// Install the UI fonts (Inter, JetBrains Mono) and the craft-fonts CJK interface faces if built
@@ -652,6 +666,18 @@ mod tests {
         };
         let (x, y) = (lum(a), lum(b));
         (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    /// Selection greys in a background macOS window and keeps its blue elsewhere.
+    #[test]
+    fn selection_greys_only_in_a_background_mac_window() {
+        let t = super::Tokens::light();
+        assert_eq!(super::selection_color_on(&t, Some(false), true), t.selection_inactive);
+        assert_eq!(super::selection_color_on(&t, Some(true), true), t.selection);
+        assert_eq!(super::selection_color_on(&t, None, true), t.selection);
+        assert_eq!(super::selection_color_on(&t, Some(false), false), t.selection);
+        let d = super::Tokens::dark();
+        assert_eq!(super::selection_color_on(&d, Some(false), true), d.selection_inactive);
     }
 
     /// #655: text and knobs on filled accent controls (Share, avatar, AutoSave, keytips) reach 4.5:1

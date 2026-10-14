@@ -1514,10 +1514,12 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(12.0, wing), (15.0, tip), (18.0, wing)], a);
         }
         "outlineExpand" | "outlineCollapse" => {
-            pen.fcircle(10.0, 10.0, 6.5, c);
-            pen.line_c(&[(6.5, 10.0), (13.5, 10.0)], Color32::WHITE);
+            // Outlined disc with a minus (collapse) or plus (expand); no knockout colour, so it
+            // reads the same on light and dark.
+            pen.circle(10.0, 10.0, 6.5, c);
+            pen.line_c(&[(7.0, 10.0), (13.0, 10.0)], a);
             if name == "outlineExpand" {
-                pen.line_c(&[(10.0, 6.5), (10.0, 13.5)], Color32::WHITE);
+                pen.line_c(&[(10.0, 7.0), (10.0, 13.0)], a);
             }
         }
         "closeOutline" => {
@@ -1573,9 +1575,8 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.frect(3.0, 4.5, 17.0, 8.0, a);
             pen.line(&[(6.5, 3.0), (6.5, 6.0)]);
             pen.line(&[(13.5, 3.0), (13.5, 6.0)]);
-            for (x, y) in [(6.5, 11.0), (10.0, 11.0), (13.5, 11.0), (6.5, 14.5), (10.0, 14.5)] {
-                pen.fcircle(x, y, 0.9, c);
-            }
+            // One selected day: a single accent block reads at 16 px where a grid of dots does not.
+            pen.frect(9.0, 10.5, 12.0, 13.5, a);
         }
         "ccRepeat" => {
             pen.rect(2.5, 3.0, 17.5, 17.0, a);
@@ -1590,9 +1591,11 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
         }
         _ => {
             // Fallback: a rounded tile with the first letter.
-            p.rect_stroke(r.shrink(r.width() * 0.12), 3.0, Stroke::new(1.0, c), egui::StrokeKind::Middle);
+            // Same pen weight and padding as the drawn icons, so a missing name reads as a placeholder.
+            let inset = pen.stroke(c).width * 0.5 + r.width() * 0.1;
+            p.rect_stroke(r.shrink(inset), 3.0 * pen.s(), pen.stroke(c), egui::StrokeKind::Middle);
             let ch = name.chars().next().map(|x| x.to_ascii_uppercase().to_string()).unwrap_or_default();
-            p.text(r.center(), egui::Align2::CENTER_CENTER, ch, FontId::proportional(r.height() * 0.45), a);
+            p.text(r.center(), egui::Align2::CENTER_CENTER, ch, FontId::proportional(r.height() * 0.42), c);
         }
     }
 }

@@ -927,9 +927,41 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.fcircle(13.5, 6.0, 2.0, c);
             pen.line(&[(11.5, 10.0), (13.5, 9.0), (17.0, 11.0), (17.0, 14.0)]);
         }
-        "mergeField" | "addressBlock" | "greetingLine" | "rules" | "matchFields" | "highlightFields" => {
+        "mergeField" => {
             pen.rect(2.5, 6.0, 17.5, 14.0, c);
             pen.text(10.0, 10.0, 7.0, "«»", a, true);
+        }
+        "addressBlock" => {
+            // A letter: a name line over two address lines.
+            pen.rect(3.0, 3.5, 17.0, 16.5, c);
+            pen.line_c(&[(6.0, 7.0), (11.0, 7.0)], a);
+            pen.lines(6.0, 14.0, &[10.0, 13.0]);
+        }
+        "greetingLine" => {
+            // A salutation: an accent name line over body text.
+            pen.line_c(&[(3.0, 6.0), (9.0, 6.0)], a);
+            pen.lines(3.0, 17.0, &[9.5, 12.5, 15.5]);
+        }
+        "rules" => {
+            // One condition branching into two outcomes.
+            pen.line(&[(3.0, 10.0), (9.0, 10.0)]);
+            pen.line_c(&[(9.0, 10.0), (16.5, 5.0)], a);
+            pen.line_c(&[(9.0, 10.0), (16.5, 15.0)], a);
+            pen.fcircle(16.5, 5.0, 1.0, a);
+            pen.fcircle(16.5, 15.0, 1.0, a);
+        }
+        "matchFields" => {
+            // Two field boxes joined by an accent equals sign.
+            pen.rect(2.5, 6.0, 8.5, 14.0, c);
+            pen.rect(11.5, 6.0, 17.5, 14.0, c);
+            pen.line_c(&[(9.5, 8.5), (10.5, 8.5)], a);
+            pen.line_c(&[(9.5, 11.5), (10.5, 11.5)], a);
+        }
+        "highlightFields" => {
+            // A field box with its contents highlighted.
+            pen.frect(3.0, 6.5, 17.0, 13.5, a.linear_multiply(0.3));
+            pen.rect(3.0, 6.5, 17.0, 13.5, c);
+            pen.lines(6.0, 14.0, &[10.0]);
         }
         "preview" => {
             pen.text(10.0, 10.0, 8.0, "ABC", a, true);
@@ -939,6 +971,12 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             let pts: &[(f32, f32)] =
                 if name == "next" || name == "last" { &[(7.0, 4.0), (13.0, 10.0), (7.0, 16.0)] } else { &[(13.0, 4.0), (7.0, 10.0), (13.0, 16.0)] };
             pen.line_c(pts, a);
+            // First and last carry a bar at the end they jump to.
+            if name == "first" {
+                pen.line_c(&[(4.5, 4.0), (4.5, 16.0)], a);
+            } else if name == "last" {
+                pen.line_c(&[(15.5, 4.0), (15.5, 16.0)], a);
+            }
         }
         "finish" => {
             pen.page(3.0, 2.0, 13.0, 15.0);
@@ -1002,10 +1040,19 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(6.0, 11.0), (14.0, 11.0)], a);
             pen.lines(6.0, 11.0, &[15.0]);
         }
-        "markup" | "reviewingPane" => {
+        "markup" => {
             pen.page(4.0, 2.0, 16.0, 18.0);
             pen.line_c(&[(6.0, 8.0), (13.0, 8.0)], red);
             pen.lines(6.0, 13.0, &[12.0]);
+        }
+        "reviewingPane" => {
+            // A document beside its review pane.
+            pen.rect(2.5, 3.0, 17.5, 17.0, c);
+            pen.line(&[(11.5, 3.0), (11.5, 17.0)]);
+            pen.line_c(&[(4.5, 7.0), (9.5, 7.0)], red);
+            pen.lines(4.5, 9.5, &[10.0, 13.0]);
+            pen.line_c(&[(13.5, 6.0), (15.5, 6.0)], a);
+            pen.lines(13.5, 15.5, &[9.0, 12.0]);
         }
         "accept" => {
             pen.page(4.0, 2.0, 15.0, 17.0);
@@ -1027,9 +1074,21 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.page(10.0, 5.0, 18.0, 17.0);
             pen.line_c(&[(6.0, 18.5), (14.0, 18.5)], a);
         }
-        "protect" | "restrict" | "blockAuthors" => {
+        "protect" => {
             pen.rect(5.0, 9.0, 15.0, 17.5, c);
             pen.line_c(&[(7.0, 9.0), (7.0, 6.0), (10.0, 3.0), (13.0, 6.0), (13.0, 9.0)], a);
+        }
+        "restrict" => {
+            // A padlock with a minus: access is limited.
+            pen.rect(5.0, 9.0, 15.0, 17.5, c);
+            pen.line_c(&[(7.0, 9.0), (7.0, 6.0), (10.0, 3.0), (13.0, 6.0), (13.0, 9.0)], c);
+            pen.line_c(&[(8.0, 13.5), (12.0, 13.5)], a);
+        }
+        "blockAuthors" => {
+            // A person with an accent slash: authors kept out.
+            pen.circle(9.5, 6.5, 2.5, c);
+            pen.line(&[(4.0, 17.5), (4.0, 14.5), (6.5, 11.5), (12.5, 11.5), (15.0, 14.5), (15.0, 17.5)]);
+            pen.line_c(&[(3.5, 4.0), (16.5, 16.5)], a);
         }
         "hideInk" => {
             pen.line_c(&[(3.0, 13.0), (6.0, 8.0), (9.0, 13.0), (12.0, 8.0)], a);

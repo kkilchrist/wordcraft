@@ -238,6 +238,9 @@ pub struct Tokens {
     pub handle: Color32,
     pub handle_shadow: Color32,
     pub menu: Color32,
+    /// The highlighted row of a menu (macOS: accent blue) and the text drawn on it.
+    pub menu_select: Color32,
+    pub menu_select_text: Color32,
     pub blue: Color32,
     pub red: Color32,
     pub green: Color32,
@@ -288,6 +291,8 @@ impl Tokens {
             handle: Color32::WHITE,
             handle_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x28),
             menu: Color32::WHITE,
+            menu_select: Color32::from_rgb(0x1F, 0x6B, 0xE0),
+            menu_select_text: Color32::WHITE,
             blue: Color32::from_rgb(0x2F, 0x6F, 0xD0),
             red: Color32::from_rgb(0xD1, 0x3B, 0x3B),
             green: Color32::from_rgb(0x2E, 0x8B, 0x57),
@@ -337,6 +342,8 @@ impl Tokens {
             handle: Color32::from_rgb(0xF2, 0xF2, 0xF2),
             handle_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x5A),
             menu: Color32::from_rgb(0x2B, 0x2B, 0x2B),
+            menu_select: Color32::from_rgb(0x2A, 0x6E, 0xE6),
+            menu_select_text: Color32::WHITE,
             blue: Color32::from_rgb(0x6C, 0x9B, 0xEA),
             red: Color32::from_rgb(0xEE, 0x6A, 0x6A),
             green: Color32::from_rgb(0x5B, 0xC0, 0x8A),
@@ -690,7 +697,8 @@ pub fn apply(ctx: &egui::Context, appearance: Appearance) {
         s.spacing.item_spacing = egui::vec2(6.0, 4.0);
         s.spacing.button_padding = egui::vec2(8.0, 3.0);
         s.spacing.interact_size = egui::vec2(24.0, 22.0);
-        s.spacing.menu_margin = egui::Margin::same(6);
+        // macOS insets the highlighted row 5 pt from the menu edge; elsewhere the frame keeps 6.
+        s.spacing.menu_margin = egui::Margin::same(if cfg!(target_os = "macos") { 5 } else { 6 });
         s.text_styles.insert(egui::TextStyle::Body, regular(12.5));
         s.text_styles.insert(egui::TextStyle::Button, regular(12.5));
         s.text_styles.insert(egui::TextStyle::Small, regular(10.5));
@@ -701,6 +709,32 @@ pub fn apply(ctx: &egui::Context, appearance: Appearance) {
         o.fallback_theme = egui::Theme::Light;
         o.theme_preference = appearance.preference();
     });
+}
+
+/// The body of a menu (context menu, dropdown). On macOS its rows are 22 pt with no gap between
+/// them, 13 pt text, and the hovered or open row is filled with the accent blue and white text,
+/// as in AppKit menus. Elsewhere the body is drawn as is.
+pub fn menu_body<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    if !cfg!(target_os = "macos") {
+        return add(ui);
+    }
+    let t = Tokens::get(ui.ctx());
+    ui.scope(|ui| {
+        let s = ui.style_mut();
+        s.spacing.item_spacing = egui::vec2(6.0, 0.0);
+        s.spacing.interact_size.y = 22.0;
+        s.text_styles.insert(egui::TextStyle::Body, regular(13.0));
+        s.text_styles.insert(egui::TextStyle::Button, regular(13.0));
+        for w in [&mut s.visuals.widgets.hovered, &mut s.visuals.widgets.active, &mut s.visuals.widgets.open] {
+            w.bg_fill = t.menu_select;
+            w.weak_bg_fill = t.menu_select;
+            w.bg_stroke = Stroke::NONE;
+            w.fg_stroke = Stroke::new(1.0, t.menu_select_text);
+            w.corner_radius = CornerRadius::same(5);
+        }
+        add(ui)
+    })
+    .inner
 }
 
 /// Turn egui's own animations on or off: hover and press fades, menus, tooltips and windows fading
@@ -823,6 +857,15 @@ mod tests {
                 let r = contrast(t.on_accent, bg);
                 assert!(r >= 4.5, "dark={}: on_accent on {name} is {r:.2}:1", t.dark);
             }
+        }
+    }
+
+    /// The highlighted menu row reads white-on-blue at 4.5:1 in both themes.
+    #[test]
+    fn menu_highlight_text_reads_on_the_highlight() {
+        for t in [super::Tokens::light(), super::Tokens::dark()] {
+            let r = contrast(t.menu_select_text, t.menu_select);
+            assert!(r >= 4.5, "dark={}: menu_select_text on menu_select is {r:.2}:1", t.dark);
         }
     }
 

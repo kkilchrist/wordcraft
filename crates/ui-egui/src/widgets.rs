@@ -299,7 +299,7 @@ pub fn menu_button(
     }
     egui::Popup::menu(&resp).show(|ui| {
         ui.set_min_width(200.0);
-        menu(ui, app);
+        crate::theme::menu_body(ui, |ui| menu(ui, app));
     });
 }
 

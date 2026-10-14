@@ -1321,7 +1321,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         Some(p) => menu.at_position(p),
         None => menu.at_pointer_fixed(),
     };
-    menu.show(|ui| context_menu(app, ui));
+    menu.show(|ui| crate::theme::menu_body(ui, |ui| context_menu(app, ui)));
     // Stand down while the context menu owns the pointer so the two never double up; the open
     // state also covers the click that dismisses the menu.
     app.canvas.context_menu_open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));

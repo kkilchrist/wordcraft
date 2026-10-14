@@ -282,9 +282,17 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.closed(&[(5.0, 3.0), (5.0, 16.0), (8.0, 13.0), (10.5, 18.0), (12.5, 17.0), (10.0, 12.0), (14.0, 12.0)], c);
         }
         "dictate" => {
-            pen.rect(7.5, 2.5, 12.5, 12.0, c);
-            pen.line(&[(5.0, 9.5), (5.0, 11.0), (10.0, 15.0), (15.0, 11.0), (15.0, 9.5)]);
-            pen.line(&[(10.0, 15.0), (10.0, 18.0)]);
+            // Microphone: capsule body, accent cradle, stand and base.
+            pen.rect(7.0, 2.5, 13.0, 12.0, c);
+            let cradle: Vec<(f32, f32)> = (0..=12)
+                .map(|i| {
+                    let t = std::f32::consts::PI * i as f32 / 12.0;
+                    (10.0 + 5.5 * t.cos(), 9.0 + 5.5 * t.sin())
+                })
+                .collect();
+            pen.line_c(&cradle, a);
+            pen.line(&[(10.0, 14.5), (10.0, 17.5)]);
+            pen.line(&[(7.0, 17.5), (13.0, 17.5)]);
         }
         "editor" | "spelling" => {
             pen.text(8.0, 7.0, 9.0, "abc", c, true);
@@ -315,11 +323,14 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(2.0, 10.0), (18.0, 10.0)], a);
         }
         "drawTable" => {
-            pen.rect(2.5, 3.0, 14.0, 14.5, c);
-            pen.line(&[(2.5, 8.5), (14.0, 8.5)]);
-            pen.line(&[(8.0, 3.0), (8.0, 14.5)]);
-            pen.line(&[(9.5, 18.0), (17.0, 10.5), (18.5, 12.0), (11.0, 19.5), (9.0, 19.8), (9.5, 18.0)]);
-            pen.fill(&[(17.0, 10.5), (18.0, 9.5), (19.5, 11.0), (18.5, 12.0)], a);
+            // A table with a pencil drawing its bottom-right corner.
+            pen.frect(2.5, 2.5, 13.0, 5.5, a);
+            pen.rect(2.5, 2.5, 13.0, 13.0, c);
+            pen.line(&[(2.5, 5.5), (13.0, 5.5)]);
+            pen.line(&[(2.5, 9.0), (13.0, 9.0)]);
+            pen.line(&[(7.75, 2.5), (7.75, 13.0)]);
+            pen.closed(&[(18.21, 12.21), (16.79, 10.79), (10.79, 16.79), (10.51, 18.49), (12.21, 18.21)], c);
+            pen.fill(&[(10.79, 16.79), (10.51, 18.49), (12.21, 18.21)], a);
         }
         "table" => {
             pen.frect(3.0, 3.0, 17.0, 7.0, a);
@@ -458,35 +469,37 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.fill(&[(14.0, 10.0), (18.0, 6.5), (18.0, 13.5)], a);
         }
         "link" => {
-            pen.closed(
-                &[(3.0, 10.0), (7.0, 6.0), (9.5, 6.0), (9.5, 8.0), (7.5, 8.0), (5.0, 10.5), (7.5, 13.0), (9.5, 13.0), (9.5, 15.0), (7.0, 15.0)],
-                c,
-            );
-            pen.line_c(&[(7.5, 10.5), (12.5, 10.5)], a);
-            pen.closed(
-                &[
-                    (17.0, 10.5),
-                    (13.0, 14.5),
-                    (10.5, 14.5),
-                    (10.5, 12.5),
-                    (12.5, 12.5),
-                    (15.0, 10.0),
-                    (12.5, 7.5),
-                    (10.5, 7.5),
-                    (10.5, 5.5),
-                    (13.0, 5.5),
-                ],
-                c,
-            );
+            // Two capsules set side by side on the diagonal, joined by an accent rung.
+            let k = std::f32::consts::FRAC_1_SQRT_2;
+            let capsule = |cx: f32, cy: f32| -> Vec<(f32, f32)> {
+                let (hl, r) = (3.4_f32, 2.4_f32);
+                let mut pts = Vec::new();
+                // Round end towards the lower-right, then the round end towards the upper-left.
+                for i in 0..=8 {
+                    let p = std::f32::consts::PI * i as f32 / 8.0;
+                    let (sn, cs) = (p.sin(), p.cos());
+                    pts.push((cx + hl * k + r * k * (sn + cs), cy + hl * k + r * k * (sn - cs)));
+                }
+                for i in 0..=8 {
+                    let p = std::f32::consts::PI * i as f32 / 8.0;
+                    let (sn, cs) = (p.sin(), p.cos());
+                    pts.push((cx - hl * k - r * k * (sn + cs), cy - hl * k - r * k * (sn - cs)));
+                }
+                pts
+            };
+            pen.closed(&capsule(7.5, 12.5), c);
+            pen.closed(&capsule(12.5, 7.5), c);
+            pen.line_c(&[(9.0, 11.0), (11.0, 9.0)], a);
         }
         "bookmark" => {
             pen.closed(&[(5.5, 2.5), (14.5, 2.5), (14.5, 17.5), (10.0, 13.5), (5.5, 17.5)], c);
             pen.fill(&[(7.0, 4.0), (13.0, 4.0), (13.0, 8.0), (7.0, 8.0)], a);
         }
         "crossRef" => {
+            // A page with an elbow arrow leading out of it.
             pen.page(3.0, 2.0, 12.0, 14.0);
-            pen.line_c(&[(9.0, 12.0), (17.0, 17.0)], a);
-            pen.line_c(&[(14.0, 17.5), (17.0, 17.0), (16.5, 14.0)], a);
+            pen.line_c(&[(12.0, 8.0), (15.5, 8.0), (15.5, 11.0)], a);
+            pen.fill(&[(13.0, 11.0), (18.0, 11.0), (15.5, 14.5)], a);
         }
         "comment" | "newComment" => {
             pen.closed(&[(2.5, 3.5), (17.5, 3.5), (17.5, 13.5), (9.0, 13.5), (5.0, 17.0), (5.0, 13.5), (2.5, 13.5)], c);

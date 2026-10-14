@@ -564,7 +564,11 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.lines(3.0, 17.0, &[16.0]);
         }
         "signature" => {
-            pen.line_c(&[(3.0, 13.0), (6.0, 7.0), (8.0, 12.0), (11.0, 6.0), (13.0, 12.0)], a);
+            // A handwritten flourish over a signature line.
+            pen.line_c(
+                &[(3.0, 12.5), (4.5, 7.5), (6.0, 8.5), (7.0, 12.5), (9.0, 10.0), (10.5, 6.5), (12.0, 9.0), (13.5, 12.5), (15.0, 10.5), (17.0, 8.0)],
+                a,
+            );
             pen.line(&[(3.0, 16.5), (17.0, 16.5)]);
         }
         "dateTime" => {
@@ -598,8 +602,16 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.frect(3.0, 14.0, 17.0, 17.0, a);
         }
         "lasso" => {
-            pen.closed(&[(4.0, 7.0), (9.0, 3.0), (16.0, 5.0), (16.0, 11.0), (10.0, 13.0), (4.0, 11.0)], c);
-            pen.line_c(&[(6.0, 12.5), (5.0, 17.5)], a);
+            // A loose freehand loop around a selection, with its tail and end point.
+            let loop_pts: Vec<(f32, f32)> = (0..24)
+                .map(|i| {
+                    let t = std::f32::consts::TAU * i as f32 / 24.0;
+                    (10.0 + 6.5 * t.cos(), 8.5 + 4.5 * t.sin())
+                })
+                .collect();
+            pen.closed(&loop_pts, c);
+            pen.line_c(&[(6.5, 12.0), (6.0, 15.5), (5.0, 17.5)], a);
+            pen.fcircle(4.8, 17.8, 0.9, a);
         }
         "inkToShape" => {
             pen.line_c(&[(3.0, 10.0), (5.0, 6.0), (8.0, 12.0), (10.0, 7.0)], a);

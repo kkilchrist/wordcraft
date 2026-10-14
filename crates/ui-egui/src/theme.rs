@@ -254,6 +254,7 @@ impl Tokens {
     /// The light palette with `accent` in place of WordCraft's blue (the system's accent colour,
     /// see [`set_accent`]); `None` is the default palette.
     pub fn light_with(accent: Option<Color32>) -> Self {
+        let system = accent;
         let accent = accent.unwrap_or(APP_COLOR);
         Tokens {
             dark: false,
@@ -291,7 +292,8 @@ impl Tokens {
             handle: Color32::WHITE,
             handle_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x28),
             menu: Color32::WHITE,
-            menu_select: Color32::from_rgb(0x1F, 0x6B, 0xE0),
+            // The system accent when the host set one (macOS menus highlight in it), else AppKit's blue.
+            menu_select: system.unwrap_or(Color32::from_rgb(0x1F, 0x6B, 0xE0)),
             menu_select_text: Color32::WHITE,
             blue: Color32::from_rgb(0x2F, 0x6F, 0xD0),
             red: Color32::from_rgb(0xD1, 0x3B, 0x3B),
@@ -304,6 +306,7 @@ impl Tokens {
     }
     /// The dark palette with `accent` in place of WordCraft's blue; `None` is the default palette.
     pub fn dark_with(accent: Option<Color32>) -> Self {
+        let system = accent;
         let accent = accent.unwrap_or(Color32::from_rgb(0x7A, 0x93, 0xF0));
         Tokens {
             dark: true,
@@ -342,7 +345,7 @@ impl Tokens {
             handle: Color32::from_rgb(0xF2, 0xF2, 0xF2),
             handle_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x5A),
             menu: Color32::from_rgb(0x2B, 0x2B, 0x2B),
-            menu_select: Color32::from_rgb(0x2A, 0x6E, 0xE6),
+            menu_select: system.unwrap_or(Color32::from_rgb(0x2A, 0x6E, 0xE6)),
             menu_select_text: Color32::WHITE,
             blue: Color32::from_rgb(0x6C, 0x9B, 0xEA),
             red: Color32::from_rgb(0xEE, 0x6A, 0x6A),
@@ -725,7 +728,9 @@ pub fn menu_body<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> 
         s.spacing.interact_size.y = 22.0;
         s.text_styles.insert(egui::TextStyle::Body, regular(13.0));
         s.text_styles.insert(egui::TextStyle::Button, regular(13.0));
-        for w in [&mut s.visuals.widgets.hovered, &mut s.visuals.widgets.active, &mut s.visuals.widgets.open] {
+        // Not `active`: its text colour is egui's strong-text colour, so white there would hide
+        // bold rows (spelling suggestions) on the white menu.
+        for w in [&mut s.visuals.widgets.hovered, &mut s.visuals.widgets.open] {
             w.bg_fill = t.menu_select;
             w.weak_bg_fill = t.menu_select;
             w.bg_stroke = Stroke::NONE;

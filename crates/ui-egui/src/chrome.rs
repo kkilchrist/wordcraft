@@ -197,6 +197,23 @@ const MAC_LIGHTS_LEFT: f32 = 10.0;
 /// from the top of the window.
 pub const MAC_CONTENT_LEFT: f32 = MAC_LIGHTS_LEFT + 2.0 * MAC_LIGHT_PITCH + MAC_LIGHT + (MAC_TITLE_BAR - MAC_LIGHT) / 2.0;
 
+/// The document title shown in the title bar and used as the OS window title. macOS document
+/// apps (Pages, TextEdit) name a clean document only by its name, and add "— Edited" once it has
+/// unsaved changes, saved or not. Elsewhere the title says "Edited", "Saved" or "Not saved".
+pub fn document_title(stem: &str, dirty: bool, saved: bool, macos: bool) -> String {
+    if macos {
+        return if dirty { format!("{stem} — {}", tl!("Edited")) } else { stem.to_string() };
+    }
+    let state = if dirty {
+        tl!("Edited")
+    } else if saved {
+        tl!("Saved")
+    } else {
+        tl!("Not saved")
+    };
+    format!("{stem} — {state}")
+}
+
 pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     // macOS: shorter, so the system's traffic lights are centred in it; the tallest controls
@@ -315,17 +332,7 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
                 });
             });
             // Centred title.
-            let title = format!(
-                "{} — {}",
-                app.title_stem(),
-                if app.session.dirty {
-                    tl!("Edited")
-                } else if app.session.path.is_some() {
-                    tl!("Saved")
-                } else {
-                    tl!("Not saved")
-                }
-            );
+            let title = document_title(&app.title_stem(), app.session.dirty, app.session.path.is_some(), app.integrated_titlebar);
             let font = TypeRung::Chrome.semibold();
             let track = TypeRung::Chrome.tracking();
             let w = text_width(ui.painter(), &title, &font, track, t.text);
@@ -570,6 +577,25 @@ mod tests {
         assert_eq!(a.session.doc.plain_text(wordcraft_doc::StoryRef::Body), "Hello");
         frame(&ctx, &mut n, vec![], &mut a);
         assert!(!egui::Popup::is_id_open(&ctx, popup), "the list closes");
+    }
+
+    #[test]
+    fn document_title_follows_the_macos_convention() {
+        let edited = tl!("Edited");
+        // A clean document is just its name, saved or never saved.
+        assert_eq!(document_title("Notes", false, true, true), "Notes");
+        assert_eq!(document_title("Document1", false, false, true), "Document1");
+        // Unsaved changes add "— Edited", saved or never saved.
+        assert_eq!(document_title("Notes", true, true, true), format!("Notes — {edited}"));
+        assert_eq!(document_title("Document1", true, false, true), format!("Document1 — {edited}"));
+    }
+
+    #[test]
+    fn document_title_keeps_the_status_word_off_macos() {
+        assert_eq!(document_title("Notes", false, true, false), format!("Notes — {}", tl!("Saved")));
+        assert_eq!(document_title("Document1", false, false, false), format!("Document1 — {}", tl!("Not saved")));
+        assert_eq!(document_title("Notes", true, true, false), format!("Notes — {}", tl!("Edited")));
+        assert_eq!(document_title("Document1", true, false, false), format!("Document1 — {}", tl!("Edited")));
     }
 
     #[test]

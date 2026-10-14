@@ -9,6 +9,8 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+#[cfg(target_os = "macos")]
+mod accent;
 mod animations;
 #[cfg(target_os = "macos")]
 mod apple_events;
@@ -315,6 +317,9 @@ fn main() -> eframe::Result {
             let region = region::system();
             let doc = if sample { wordcraft_engine::sample::sample_document() } else { wordcraft_engine::blank_document(&region) };
             let (file_dialog, dialogs) = file_dialogs::hook(&cc.egui_ctx);
+            // The system's accent colour replaces WordCraft's blue (macOS), read once at start-up.
+            #[cfg(target_os = "macos")]
+            wordcraft_ui_egui::theme::set_accent(&cc.egui_ctx, accent::system());
             let mut session = Session::new(doc);
             session.system_region = region;
             let mut app = WordApp::new(session, services(file_dialog, &cc.egui_ctx));

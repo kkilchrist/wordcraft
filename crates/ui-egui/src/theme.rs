@@ -246,6 +246,12 @@ pub struct Tokens {
 
 impl Tokens {
     pub fn light() -> Self {
+        Self::light_with(None)
+    }
+    /// The light palette with `accent` in place of WordCraft's blue (the system's accent colour,
+    /// see [`set_accent`]); `None` is the default palette.
+    pub fn light_with(accent: Option<Color32>) -> Self {
+        let accent = accent.unwrap_or(APP_COLOR);
         Tokens {
             dark: false,
             title_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
@@ -264,7 +270,7 @@ impl Tokens {
             hover: Color32::from_rgb(0xE6, 0xE6, 0xE6),
             pressed: Color32::from_rgb(0xD6, 0xD6, 0xD6),
             checked: Color32::from_rgb(0xDD, 0xE3, 0xF8),
-            accent: APP_COLOR,
+            accent,
             accent_text: APP_INK,
             on_accent: Color32::WHITE,
             input: Color32::WHITE,
@@ -274,7 +280,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0xD4, 0xD4, 0xD4),
             ruler_tick: Color32::from_rgb(0x70, 0x70, 0x70),
             status_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
-            selection: Color32::from_rgba_unmultiplied(0x3B, 0x5B, 0xDB, 0x48),
+            selection: tinted(accent, 0x48),
             selection_inactive: Color32::from_rgba_unmultiplied(0, 0, 0, 0x1F),
             find_highlight: Color32::from_rgba_unmultiplied(0xFF, 0xE0, 0x3D, 0x90),
             caret: Color32::BLACK,
@@ -289,6 +295,11 @@ impl Tokens {
         }
     }
     pub fn dark() -> Self {
+        Self::dark_with(None)
+    }
+    /// The dark palette with `accent` in place of WordCraft's blue; `None` is the default palette.
+    pub fn dark_with(accent: Option<Color32>) -> Self {
+        let accent = accent.unwrap_or(Color32::from_rgb(0x7A, 0x93, 0xF0));
         Tokens {
             dark: true,
             title_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
@@ -307,7 +318,7 @@ impl Tokens {
             hover: Color32::from_rgb(0x3D, 0x3D, 0x3D),
             pressed: Color32::from_rgb(0x4A, 0x4A, 0x4A),
             checked: Color32::from_rgb(0x2E, 0x3A, 0x66),
-            accent: Color32::from_rgb(0x7A, 0x93, 0xF0),
+            accent,
             accent_text: Color32::from_rgb(0x9C, 0xB0, 0xF5),
             // Dark text on the light dark-theme accent: white on #7a93f0 is only 2.9:1 (#655).
             on_accent: Color32::from_rgb(0x11, 0x16, 0x2E),
@@ -318,7 +329,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0x45, 0x45, 0x45),
             ruler_tick: Color32::from_rgb(0xA0, 0xA0, 0xA0),
             status_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
-            selection: Color32::from_rgba_unmultiplied(0x7A, 0x93, 0xF0, 0x55),
+            selection: tinted(accent, 0x55),
             selection_inactive: Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 0x26),
             find_highlight: Color32::from_rgba_unmultiplied(0xC8, 0xA8, 0x00, 0x70),
             caret: Color32::BLACK,
@@ -333,7 +344,8 @@ impl Tokens {
         }
     }
     pub fn get(ctx: &egui::Context) -> Tokens {
-        if ctx.global_style().visuals.dark_mode { Tokens::dark() } else { Tokens::light() }
+        let accent = accent_override(ctx);
+        if ctx.global_style().visuals.dark_mode { Tokens::dark_with(accent) } else { Tokens::light_with(accent) }
     }
 }
 
@@ -345,6 +357,38 @@ pub fn selection_color(t: &Tokens, focused: Option<bool>) -> Color32 {
 
 fn selection_color_on(t: &Tokens, focused: Option<bool>, macos: bool) -> Color32 {
     if macos && focused == Some(false) { t.selection_inactive } else { t.selection }
+}
+
+/// The id of the accent override in egui's memory (see [`set_accent`]).
+fn accent_id() -> egui::Id {
+    egui::Id::new("wordcraft.theme.accent")
+}
+
+/// The accent the host set with [`set_accent`], if any.
+fn accent_override(ctx: &egui::Context) -> Option<Color32> {
+    ctx.data(|d| d.get_temp(accent_id()))
+}
+
+/// Replace the accent (the blue of buttons, the active tab and the selection) with `accent`, or
+/// restore WordCraft's own blue with `None`. The host calls this with the system's accent colour
+/// (macOS, System Settings › Appearance). Both palettes' visuals are set here, and every later
+/// [`Tokens::get`] and [`apply`] uses the same accent.
+pub fn set_accent(ctx: &egui::Context, accent: Option<Color32>) {
+    ctx.data_mut(|d| {
+        if let Some(c) = accent {
+            d.insert_temp(accent_id(), c);
+        } else {
+            d.remove::<Color32>(accent_id());
+        }
+    });
+    ctx.set_visuals_of(egui::Theme::Light, visuals(&Tokens::light_with(accent)));
+    ctx.set_visuals_of(egui::Theme::Dark, visuals(&Tokens::dark_with(accent)));
+}
+
+/// The selection tint: `accent` at `alpha`.
+fn tinted(accent: Color32, alpha: u8) -> Color32 {
+    let [r, g, b, _] = accent.to_srgba_unmultiplied();
+    Color32::from_rgba_unmultiplied(r, g, b, alpha)
 }
 
 /// Install the UI fonts (Inter, JetBrains Mono) and the craft-fonts CJK interface faces if built
@@ -589,8 +633,9 @@ fn tracked_job(text: &str, font: &FontId, tracking: f32, color: Color32) -> egui
 /// Setting a concrete theme for `System` would pin the native window too, and macOS then stops
 /// reporting appearance changes (#311).
 pub fn apply(ctx: &egui::Context, appearance: Appearance) {
-    ctx.set_visuals_of(egui::Theme::Light, visuals(&Tokens::light()));
-    ctx.set_visuals_of(egui::Theme::Dark, visuals(&Tokens::dark()));
+    let accent = accent_override(ctx);
+    ctx.set_visuals_of(egui::Theme::Light, visuals(&Tokens::light_with(accent)));
+    ctx.set_visuals_of(egui::Theme::Dark, visuals(&Tokens::dark_with(accent)));
     ctx.all_styles_mut(|s| {
         s.spacing.item_spacing = egui::vec2(6.0, 4.0);
         s.spacing.button_padding = egui::vec2(8.0, 3.0);
@@ -686,6 +731,35 @@ mod tests {
         assert_eq!(super::selection_color_on(&t, Some(false), false), t.selection);
         let d = super::Tokens::dark();
         assert_eq!(super::selection_color_on(&d, Some(false), true), d.selection_inactive);
+    /// The system accent (macOS): the accent and its selection tint follow the override, the
+    /// selection keeps today's alpha, and without an override the palettes are unchanged.
+    #[test]
+    fn accent_override_replaces_the_accent_and_its_tint() {
+        let green = egui::Color32::from_rgb(0x2E, 0x9E, 0x4F);
+        let light = super::Tokens::light_with(Some(green));
+        assert_eq!(light.accent, green);
+        assert_eq!(light.selection, egui::Color32::from_rgba_unmultiplied(0x2E, 0x9E, 0x4F, 0x48));
+        let dark = super::Tokens::dark_with(Some(green));
+        assert_eq!(dark.accent, green);
+        assert_eq!(dark.selection, egui::Color32::from_rgba_unmultiplied(0x2E, 0x9E, 0x4F, 0x55));
+        assert_eq!(super::Tokens::light_with(None).accent, super::APP_COLOR);
+        assert_eq!(super::Tokens::light_with(None).selection, egui::Color32::from_rgba_unmultiplied(0x3B, 0x5B, 0xDB, 0x48));
+        assert_eq!(super::Tokens::dark_with(None).accent, egui::Color32::from_rgb(0x7A, 0x93, 0xF0));
+    }
+
+    /// `set_accent` reaches `Tokens::get` and both palettes' visuals; clearing it restores the blue.
+    #[test]
+    fn set_accent_reaches_tokens_and_visuals() {
+        let ctx = egui::Context::default();
+        let green = egui::Color32::from_rgb(0x2E, 0x9E, 0x4F);
+        super::set_accent(&ctx, Some(green));
+        assert_eq!(super::Tokens::get(&ctx).accent, green);
+        assert_eq!(ctx.style_of(egui::Theme::Light).visuals.selection.stroke.color, green);
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.selection.stroke.color, green);
+        super::set_accent(&ctx, None);
+        let want = if super::Tokens::get(&ctx).dark { super::Tokens::dark() } else { super::Tokens::light() };
+        assert_eq!(super::Tokens::get(&ctx).accent, want.accent);
+        assert_eq!(ctx.style_of(egui::Theme::Light).visuals.selection.stroke.color, super::APP_COLOR);
     }
 
     /// #655: text and knobs on filled accent controls (Share, avatar, AutoSave, keytips) reach 4.5:1

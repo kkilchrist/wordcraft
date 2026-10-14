@@ -1313,36 +1313,38 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.rect(6.0, 11.0, 14.0, 17.0, c);
         }
         "undo" => {
-            pen.line(&[(5.0, 8.0), (13.0, 8.0)]);
-            pen.p.add(Shape::line(
+            // A U-turn: shaft out of the arrowhead, round over the top, back in underneath.
+            let arc = |cx: f32, s: f32| -> Vec<(f32, f32)> {
                 (0..=12)
                     .map(|i| {
                         let t = -std::f32::consts::FRAC_PI_2 + std::f32::consts::PI * i as f32 / 12.0;
-                        pen.pt(13.0 + 4.5 * t.cos(), 12.5 + 4.5 * t.sin())
+                        (cx + s * 4.0 * t.cos(), 11.0 + 4.0 * t.sin())
                     })
-                    .collect(),
-                pen.stroke(c),
-            ));
-            pen.line(&[(13.0, 17.0), (8.0, 17.0)]);
-            pen.fill(&[(2.5, 8.0), (6.5, 4.5), (6.5, 11.5)], a);
+                    .collect()
+            };
+            pen.line(&[(4.0, 7.0), (12.0, 7.0)]);
+            pen.line(&arc(12.0, 1.0));
+            pen.line(&[(12.0, 15.0), (8.0, 15.0)]);
+            pen.line(&[(7.5, 3.5), (4.0, 7.0), (7.5, 10.5)]);
         }
         "redo" => {
-            pen.line(&[(15.0, 8.0), (7.0, 8.0)]);
-            pen.p.add(Shape::line(
+            // Mirror of undo.
+            let arc = |cx: f32, s: f32| -> Vec<(f32, f32)> {
                 (0..=12)
                     .map(|i| {
-                        let t = std::f32::consts::FRAC_PI_2 + std::f32::consts::PI * i as f32 / 12.0;
-                        pen.pt(7.0 + 4.5 * t.cos(), 12.5 - 4.5 * t.sin())
+                        let t = -std::f32::consts::FRAC_PI_2 + std::f32::consts::PI * i as f32 / 12.0;
+                        (cx + s * 4.0 * t.cos(), 11.0 + 4.0 * t.sin())
                     })
-                    .collect(),
-                pen.stroke(c),
-            ));
-            pen.line(&[(7.0, 17.0), (12.0, 17.0)]);
-            pen.fill(&[(17.5, 8.0), (13.5, 4.5), (13.5, 11.5)], a);
+                    .collect()
+            };
+            pen.line(&[(16.0, 7.0), (8.0, 7.0)]);
+            pen.line(&arc(8.0, -1.0));
+            pen.line(&[(8.0, 15.0), (12.0, 15.0)]);
+            pen.line(&[(12.5, 3.5), (16.0, 7.0), (12.5, 10.5)]);
         }
         "search" => {
-            pen.circle(8.5, 8.5, 5.0, c);
-            pen.line(&[(12.0, 12.0), (16.5, 16.5)]);
+            pen.circle(8.0, 8.0, 5.5, c);
+            pen.line(&[(12.4, 12.4), (16.5, 16.5)]);
         }
         "share" => {
             pen.line(&[(10.0, 3.0), (10.0, 12.0)]);
@@ -1375,14 +1377,16 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             }
         }
         "launcher" => {
-            pen.line(&[(5.0, 5.0), (5.0, 15.0), (15.0, 15.0)]);
-            pen.line(&[(8.0, 8.0), (15.0, 15.0)]);
-            pen.line(&[(11.0, 15.0), (15.0, 15.0), (15.0, 11.0)]);
+            // A box with its top-right corner open, and an arrow leaving through the gap.
+            pen.line(&[(9.0, 4.0), (4.0, 4.0), (4.0, 16.0), (16.0, 16.0), (16.0, 11.0)]);
+            pen.line_c(&[(8.5, 11.5), (15.5, 4.5)], a);
+            pen.line_c(&[(10.5, 4.5), (15.5, 4.5), (15.5, 9.5)], a);
         }
         "pin" => {
-            pen.line(&[(10.0, 12.0), (10.0, 18.0)]);
-            pen.rect(7.0, 2.0, 13.0, 9.0, c);
-            pen.line(&[(5.0, 12.0), (15.0, 12.0)]);
+            // A push pin: a tapered head on a plate, with the needle in accent.
+            pen.line(&[(7.5, 3.0), (7.5, 9.0), (5.5, 11.5), (14.5, 11.5), (12.5, 9.0), (12.5, 3.0)]);
+            pen.line(&[(6.0, 3.0), (14.0, 3.0)]);
+            pen.line_c(&[(10.0, 11.5), (10.0, 17.5)], a);
         }
         "plus" => {
             pen.line(&[(10.0, 4.0), (10.0, 16.0)]);

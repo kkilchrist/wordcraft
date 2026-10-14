@@ -1065,6 +1065,9 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 }
             }
         }
+        // macOS: a background window greys the selection and hides the caret (`window_active`).
+        let window_focused = ui.input(|i| i.viewport().focused);
+        let window_active = !cfg!(target_os = "macos") || window_focused != Some(false);
         // Selection (a selected object shows its frame instead): whole table cells shade the
         // cells (an empty one too), a column selection each row's piece.
         let selected: Vec<_> = if crate::objects::selected(app).is_some() {
@@ -1085,7 +1088,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             if let Some(pr) = rects.get(pi) {
                 let scale = layout.pages.get(pi).map_or(geo.scale, |page| page_screen_scale(*pr, page, geo.scale));
                 let sr = Rect::from_min_size(pos2(pr.min.x + r.x * scale, pr.min.y + r.y * scale), vec2(r.w * scale, r.h * scale));
-                painter.rect_filled(sr, 0.0, t.selection);
+                painter.rect_filled(sr, 0.0, crate::theme::selection_color(&t, window_focused));
                 // Track the topmost rect: the mini toolbar anchors on the selection's first line.
                 if first.is_none_or(|f| sr.min.y < f.min.y) {
                     first = Some(sr);
@@ -1107,7 +1110,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             }
         }
         // Caret.
-        let focused = resp.has_focus() || app.canvas.focused;
+        let focused = (resp.has_focus() || app.canvas.focused) && window_active;
         // Editing an equation: shade it and draw the caret inside it.
         let mut math_caret = false;
         if let Some(m) = app.session.math.clone()

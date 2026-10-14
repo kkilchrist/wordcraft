@@ -60,7 +60,7 @@ mod tests {
 
     /// Modifiers as egui reports them on macOS: `command` and `mac_cmd` are both ⌘.
     fn m(command: bool, ctrl: bool, alt: bool, shift: bool) -> Modifiers {
-        Modifiers { command, mac_cmd: command, ctrl, alt, shift, ..Default::default() }
+        Modifiers { command, mac_cmd: command, ctrl, alt, shift }
     }
 
     fn one(id: &'static str, extend: bool) -> Option<Vec<(&'static str, Value)>> {

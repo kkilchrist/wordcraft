@@ -479,6 +479,15 @@ pub fn font_definitions(prefer_hans: bool, system_cjk: bool) -> FontDefinitions 
         prop.insert(0, "Inter".into());
         prop.push("SourceSans".into());
     }
+    // macOS interface text is set in the system face (San Francisco) when its file can be read,
+    // first in the Proportional family; Inter and the rest stay after it for glyphs SF lacks.
+    #[cfg(target_os = "macos")]
+    if let Some(bytes) = system_sans_font_bytes() {
+        fonts.font_data.insert(SYSTEM_SANS.into(), Arc::new(FontData::from_owned(bytes.to_vec())));
+        if let Some(prop) = fonts.families.get_mut(&FontFamily::Proportional) {
+            prop.insert(0, SYSTEM_SANS.into());
+        }
+    }
     if let Some(m) = fonts.families.get_mut(&FontFamily::Monospace) {
         m.insert(0, "Mono".into());
     }
@@ -510,6 +519,47 @@ pub fn font_definitions(prefer_hans: bool, system_cjk: bool) -> FontDefinitions 
     let _ = system_cjk;
     // Symbols and emoji fall back to egui's defaults (kept in the families).
     fonts
+}
+
+/// Font name of the macOS system UI face in [`font_definitions`].
+#[cfg(target_os = "macos")]
+const SYSTEM_SANS: &str = "San Francisco";
+
+/// The macOS system UI font files, tried in order: San Francisco (the variable face, default
+/// instance) first, then its text and display cuts.
+#[cfg(target_os = "macos")]
+const SYSTEM_SANS_PATHS: &[&str] = &["/System/Library/Fonts/SFNS.ttf", "/System/Library/Fonts/SFNSText.ttf", "/System/Library/Fonts/SFNSDisplay.ttf"];
+
+/// Largest system UI font file read: the cap [`wordcraft_fonts::system_cjk_ui_font`] applies too.
+#[cfg(target_os = "macos")]
+const MAX_SYSTEM_SANS: u64 = 128 << 20;
+
+/// The bytes of the system UI font, read once; `None` when no candidate can be read, so Inter
+/// stays the interface face.
+#[cfg(target_os = "macos")]
+fn system_sans_font_bytes() -> Option<&'static [u8]> {
+    static SANS: std::sync::OnceLock<Option<Vec<u8>>> = std::sync::OnceLock::new();
+    SANS.get_or_init(|| {
+        let found = first_readable_font(SYSTEM_SANS_PATHS.iter().map(std::path::Path::new));
+        if found.is_none() {
+            log::info!("no system UI font readable; the interface keeps Inter");
+        }
+        found
+    })
+    .as_deref()
+}
+
+/// The contents of the first of `paths` that is a regular file of at most [`MAX_SYSTEM_SANS`]
+/// bytes and can be read; missing, oversized or unreadable candidates are skipped.
+#[cfg(target_os = "macos")]
+fn first_readable_font<'a>(paths: impl IntoIterator<Item = &'a std::path::Path>) -> Option<Vec<u8>> {
+    paths.into_iter().find_map(|path| {
+        let size = std::fs::metadata(path).ok().filter(|m| m.is_file()).map(|m| m.len())?;
+        if size > MAX_SYSTEM_SANS {
+            return None;
+        }
+        std::fs::read(path).ok()
+    })
 }
 
 /// The installed CJK interface font for a Chinese (`hans`) or other interface, chosen once:
@@ -805,6 +855,20 @@ mod tests {
         super::add_fallback_faces(&mut defs, &got);
         assert_eq!(defs.font_data.len(), before + 1);
         assert!(defs.families[&egui::FontFamily::Proportional].last().is_some_and(|n| n.starts_with("fallback ")));
+    }
+
+    /// The system UI font is taken from the first readable candidate: missing paths and
+    /// directories are skipped, and nothing readable gives `None` (Inter stays).
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn system_sans_skips_unreadable_candidates() {
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+        let missing = std::path::Path::new("/nonexistent/SFNS.ttf");
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let got = super::first_readable_font([missing, dir, manifest.as_path()]);
+        assert!(got.is_some_and(|b| !b.is_empty()), "the readable file is used");
+        assert!(super::first_readable_font([missing, dir]).is_none());
+        assert!(super::first_readable_font([]).is_none());
     }
 
     /// A file name in a script Inter lacks (Hebrew, Arabic, …) is drawn in the window caption,

@@ -731,6 +731,8 @@ mod tests {
         assert_eq!(super::selection_color_on(&t, Some(false), false), t.selection);
         let d = super::Tokens::dark();
         assert_eq!(super::selection_color_on(&d, Some(false), true), d.selection_inactive);
+    }
+
     /// The system accent (macOS): the accent and its selection tint follow the override, the
     /// selection keeps today's alpha, and without an override the palettes are unchanged.
     #[test]

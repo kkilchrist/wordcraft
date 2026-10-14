@@ -2848,12 +2848,23 @@ mod tests {
     #[test]
     fn arrow_keys_choose_the_save_prompt_answer() {
         use egui_kittest::kittest::Queryable;
-        for (arrows, focused, quits, saves) in [
-            (vec![egui::Key::ArrowLeft], "Save", true, true),
-            (vec![egui::Key::ArrowRight], "Don't Save", true, false),
-            (vec![egui::Key::ArrowRight, egui::Key::ArrowRight, egui::Key::ArrowRight], "Cancel", false, false),
-            (vec![egui::Key::ArrowRight, egui::Key::ArrowRight, egui::Key::ArrowLeft], "Don't Save", true, false),
-        ] {
+        // Left/Right follow the buttons' on-screen order, which differs on macOS (Don't Save | Cancel | Save).
+        let cases: Vec<(Vec<egui::Key>, &str, bool, bool)> = if cfg!(target_os = "macos") {
+            vec![
+                (vec![egui::Key::ArrowLeft], "Cancel", false, false),
+                (vec![egui::Key::ArrowLeft, egui::Key::ArrowLeft], "Don't Save", true, false),
+                (vec![egui::Key::ArrowLeft, egui::Key::ArrowLeft, egui::Key::ArrowLeft], "Don't Save", true, false),
+                (vec![egui::Key::ArrowLeft, egui::Key::ArrowRight], "Save", true, true),
+            ]
+        } else {
+            vec![
+                (vec![egui::Key::ArrowLeft], "Save", true, true),
+                (vec![egui::Key::ArrowRight], "Don't Save", true, false),
+                (vec![egui::Key::ArrowRight, egui::Key::ArrowRight, egui::Key::ArrowRight], "Cancel", false, false),
+                (vec![egui::Key::ArrowRight, egui::Key::ArrowRight, egui::Key::ArrowLeft], "Don't Save", true, false),
+            ]
+        };
+        for (arrows, focused, quits, saves) in cases {
             let dir = scratch(&format!("arrows-{}-{}", arrows.len(), focused.len()));
             let path = docx_on_disk(&dir, "Draft");
             let before = std::fs::read(&path).unwrap();
@@ -2892,6 +2903,47 @@ mod tests {
             assert_eq!(prompt(a), None, "{arrows:?}: answered");
             assert_eq!(a.quit_requested, quits, "{arrows:?}: quit");
             assert_eq!(std::fs::read(&path).unwrap() != before, saves, "{arrows:?}: file written");
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
+    /// macOS save prompt: ⌘D and ⌘⌫ answer Don't Save, and ⌘. answers Cancel, whichever button has focus.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn command_keys_answer_the_macos_save_prompt() {
+        for (key, quits) in [(egui::Key::D, true), (egui::Key::Backspace, true), (egui::Key::Period, false)] {
+            let dir = scratch(&format!("cmd-{key:?}"));
+            let path = docx_on_disk(&dir, "Draft");
+            let before = std::fs::read(&path).unwrap();
+            let mut a = app();
+            a.run("file.open", json!({"path": path.to_string_lossy()})).unwrap();
+            a.run("text.insert", json!({"text": "Revised "})).unwrap();
+            a.run("file.close", json!({})).unwrap();
+            assert_eq!(prompt(&a), Some("saveChanges"));
+            let mut fonts = false;
+            let mut h = egui_kittest::Harness::builder().build_ui_state(
+                move |ui, app: &mut WordApp| {
+                    let ctx = ui.ctx().clone();
+                    if fonts {
+                        dialogs::show(app, &ctx);
+                    } else {
+                        theme::install_fonts_for(&ctx, false);
+                        fonts = true;
+                    }
+                },
+                a,
+            );
+            for _ in 0..3 {
+                h.step();
+            }
+            h.key_press_modifiers(egui::Modifiers::COMMAND, key);
+            for _ in 0..3 {
+                h.step();
+            }
+            let a = h.state();
+            assert_eq!(prompt(a), None, "{key:?}: answered");
+            assert_eq!(a.quit_requested, quits, "{key:?}: quit");
+            assert!(std::fs::read(&path).unwrap() == before, "{key:?}: nothing saved");
             let _ = std::fs::remove_dir_all(&dir);
         }
     }

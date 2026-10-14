@@ -109,14 +109,28 @@ pub fn combo(m: Modifiers, key: &str, with_shift: bool) -> String {
 /// a character.
 fn ui_shortcut(key: Key, m: Modifiers) -> Option<(&'static str, Value)> {
     let alt_only = m.alt && !m.command && !m.ctrl && !m.mac_cmd && !m.shift;
+    let mac = cfg!(target_os = "macos");
     match key {
-        Key::Q if alt_only && !cfg!(target_os = "macos") => Some(("ui.dialog", json!({"name": "commands"}))),
+        Key::Q if alt_only && !mac => Some(("ui.dialog", json!({"name": "commands"}))),
+        // macOS app shortcuts: ⌘, opens Options, and ⌘⇧/ (⌘?) opens "Tell me" as the Help menu's search does.
+        Key::Comma if mac && m.command && !m.ctrl && !m.alt && !m.shift => Some(("ui.backstage", json!({"value": true, "page": "options"}))),
+        Key::Slash if mac && m.command && m.shift && !m.ctrl && !m.alt => Some(("ui.dialog", json!({"name": "commands"}))),
         _ => None,
     }
 }
 
+/// ⌃⌘F toggles full screen, as in macOS apps. It needs the egui context, so `dispatch` handles it.
+fn is_fullscreen_shortcut(key: Key, m: Modifiers) -> bool {
+    cfg!(target_os = "macos") && key == Key::F && m.command && m.ctrl && !m.alt && !m.shift
+}
+
 /// Find and run the command bound to this key. Returns true if handled.
-fn dispatch(app: &mut WordApp, key: Key, m: Modifiers) -> bool {
+fn dispatch(app: &mut WordApp, ctx: &egui::Context, key: Key, m: Modifiers) -> bool {
+    if is_fullscreen_shortcut(key, m) {
+        let full = ctx.input(|i| i.viewport().fullscreen).unwrap_or(false);
+        ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
+        return true;
+    }
     if let Some((id, params)) = ui_shortcut(key, m) {
         let _ = app.run(id, params);
         return true;
@@ -369,7 +383,7 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
                     let _ = app.run("insert.closeHeader", json!({}));
                     continue;
                 }
-                app.canvas.swallow_text = dispatch(app, key, modifiers) && modifiers.alt;
+                app.canvas.swallow_text = dispatch(app, ctx, key, modifiers) && modifiers.alt;
             }
             _ => {}
         }
@@ -393,7 +407,7 @@ pub fn global_shortcuts(app: &mut WordApp, ctx: &egui::Context) {
         if let egui::Event::Key { key, pressed: true, modifiers, .. } = e
             && is_global_shortcut(key, modifiers)
         {
-            dispatch(app, key, modifiers);
+            dispatch(app, ctx, key, modifiers);
         }
     }
 }
@@ -422,6 +436,28 @@ mod tests {
         assert_eq!(ui_shortcut(Key::Q, m(true, false, true)), None, "Mod+Alt+Q");
         assert_eq!(ui_shortcut(Key::Q, m(false, false, false)), None, "a plain Q");
         assert_eq!(ui_shortcut(Key::W, m(true, false, false)), None);
+    }
+
+    #[test]
+    fn mac_app_shortcuts_open_options_search_and_full_screen() {
+        let m = |command, shift, ctrl| egui::Modifiers { command, mac_cmd: command, shift, ctrl, ..Default::default() };
+        let options = Some(("ui.backstage", json!({"value": true, "page": "options"})));
+        let tell_me = Some(("ui.dialog", json!({"name": "commands"})));
+        if cfg!(target_os = "macos") {
+            assert_eq!(ui_shortcut(Key::Comma, m(true, false, false)), options, "⌘,");
+            assert_eq!(ui_shortcut(Key::Comma, m(false, false, false)), None, "a plain comma types");
+            assert_eq!(ui_shortcut(Key::Comma, m(true, false, true)), None, "⌃⌘, is not Options");
+            assert_eq!(ui_shortcut(Key::Slash, m(true, true, false)), tell_me, "⌘?");
+            assert_eq!(ui_shortcut(Key::Slash, m(true, false, false)), None, "⌘/ is not Tell me");
+            assert!(is_fullscreen_shortcut(Key::F, m(true, false, true)), "⌃⌘F");
+            assert!(!is_fullscreen_shortcut(Key::F, m(true, false, false)), "⌘F is Find");
+            assert!(!is_fullscreen_shortcut(Key::F, m(false, false, true)), "⌃F");
+            assert!(!is_fullscreen_shortcut(Key::F, m(true, true, true)), "⌃⌘⇧F");
+        } else {
+            assert_eq!(ui_shortcut(Key::Comma, m(true, false, false)), None, "⌘, is macOS only");
+            assert_eq!(ui_shortcut(Key::Slash, m(true, true, false)), None, "⌘? is macOS only");
+            assert!(!is_fullscreen_shortcut(Key::F, m(true, false, true)), "⌃⌘F is macOS only");
+        }
     }
 
     #[test]

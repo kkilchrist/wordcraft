@@ -1377,10 +1377,9 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             }
         }
         "launcher" => {
-            // A box with its top-right corner open, and an arrow leaving through the gap.
-            pen.line(&[(9.0, 4.0), (4.0, 4.0), (4.0, 16.0), (16.0, 16.0), (16.0, 11.0)]);
-            pen.line_c(&[(8.5, 11.5), (15.5, 4.5)], a);
-            pen.line_c(&[(10.5, 4.5), (15.5, 4.5), (15.5, 9.5)], a);
+            pen.line(&[(5.0, 5.0), (5.0, 15.0), (15.0, 15.0)]);
+            pen.line(&[(8.0, 8.0), (15.0, 15.0)]);
+            pen.line(&[(11.0, 15.0), (15.0, 15.0), (15.0, 11.0)]);
         }
         "pin" => {
             // A push pin: a tapered head on a plate, with the needle in accent.

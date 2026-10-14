@@ -750,12 +750,42 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.fcircle(13.0, 13.0, 3.0, c);
         }
         "rotate" => {
-            pen.circle(10.0, 10.0, 6.0, c);
-            pen.fill(&[(14.5, 3.0), (17.5, 6.0), (13.5, 7.0)], a);
+            // A tilted square turned by a curved arrow.
+            let arc = |t0: f32, t1: f32| -> Vec<(f32, f32)> {
+                (0..=24)
+                    .map(|i| {
+                        let t = t0 + (t1 - t0) * i as f32 / 24.0;
+                        (10.0 + 7.5 * t.cos(), 10.0 + 7.5 * t.sin())
+                    })
+                    .collect()
+            };
+            pen.closed(&[(10.0, 5.0), (15.0, 10.0), (10.0, 15.0), (5.0, 10.0)], c);
+            pen.line_c(&arc(-1.0, 3.9), a);
+            let (s, co) = (3.9f32.sin(), 3.9f32.cos());
+            let b = (10.0 + 7.5 * co, 10.0 + 7.5 * s);
+            let tip = (10.0 + 7.5 * (3.9f32 + 0.3).cos(), 10.0 + 7.5 * (3.9f32 + 0.3).sin());
+            pen.fill(&[tip, (b.0 + 2.2 * co, b.1 + 2.2 * s), (b.0 - 2.2 * co, b.1 - 2.2 * s)], a);
         }
-        "indentLeft" | "indentRight" | "spaceBefore" | "spaceAfter" => {
-            pen.lines(3.0, 17.0, &[6.0, 10.0, 14.0]);
-            pen.fcircle(if name.contains("Right") { 15.0 } else { 5.0 }, 10.0, 1.6, a);
+        "indentLeft" | "indentRight" => {
+            // Paragraph with the indent marked by an accent triangle on the margin side.
+            let fx = |x: f32| if name == "indentRight" { 20.0 - x } else { x };
+            pen.line(&[(fx(3.0), 4.0), (fx(17.0), 4.0)]);
+            pen.line(&[(fx(8.0), 8.0), (fx(17.0), 8.0)]);
+            pen.line(&[(fx(8.0), 12.0), (fx(17.0), 12.0)]);
+            pen.line(&[(fx(3.0), 16.0), (fx(17.0), 16.0)]);
+            pen.fill(&[(fx(2.5), 6.5), (fx(2.5), 13.5), (fx(6.2), 10.0)], a);
+        }
+        "spaceBefore" => {
+            // Two paragraphs; the accent gap arrow points down into the lower one.
+            pen.lines(3.0, 17.0, &[3.5, 7.0, 13.0, 16.5]);
+            pen.line_c(&[(10.0, 8.6), (10.0, 10.4)], a);
+            pen.fill(&[(7.6, 10.2), (12.4, 10.2), (10.0, 12.6)], a);
+        }
+        "spaceAfter" => {
+            // Two paragraphs; the accent gap arrow points up into the upper one.
+            pen.lines(3.0, 17.0, &[3.5, 7.0, 13.0, 16.5]);
+            pen.line_c(&[(10.0, 9.4), (10.0, 11.2)], a);
+            pen.fill(&[(7.6, 9.8), (12.4, 9.8), (10.0, 7.4)], a);
         }
         // References
         "toc" => {
@@ -771,8 +801,26 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(12.0, 14.0), (18.0, 14.0)], a);
         }
         "updateTable" | "update" => {
-            pen.circle(10.0, 10.0, 6.0, c);
-            pen.fill(&[(14.5, 3.0), (17.5, 6.0), (13.5, 7.0)], green);
+            // A refresh arrow: an arc with an arrowhead at the upper right.
+            let (cx, cy, r) = if name == "update" { (10.0, 10.0, 6.5) } else { (13.5, 13.5, 4.5) };
+            let arc = |t0: f32, t1: f32| -> Vec<(f32, f32)> {
+                (0..=24)
+                    .map(|i| {
+                        let t = t0 + (t1 - t0) * i as f32 / 24.0;
+                        (cx + r * t.cos(), cy + r * t.sin())
+                    })
+                    .collect()
+            };
+            pen.line_c(&arc(-1.0, 3.9), c);
+            let (s, co) = (3.9f32.sin(), 3.9f32.cos());
+            let b = (cx + r * co, cy + r * s);
+            let tip = (cx + r * (3.9f32 + 0.3).cos(), cy + r * (3.9f32 + 0.3).sin());
+            pen.fill(&[tip, (b.0 + 2.2 * co, b.1 + 2.2 * s), (b.0 - 2.2 * co, b.1 - 2.2 * s)], green);
+            if name == "updateTable" {
+                pen.rect(2.5, 2.5, 10.5, 10.5, c);
+                pen.line(&[(2.5, 6.5), (10.5, 6.5)]);
+                pen.line(&[(6.5, 2.5), (6.5, 10.5)]);
+            }
         }
         "footnote" => {
             pen.text(6.5, 7.0, 10.0, "ab", c, false);
@@ -835,8 +883,12 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.lines(6.0, 11.0, &[13.5]);
         }
         "citation" => {
-            pen.text(6.0, 9.0, 14.0, "“", a, true);
-            pen.lines(9.0, 17.0, &[6.0, 10.0, 14.0]);
+            // Two quote marks (dot and tail) over a short quoted line of text.
+            pen.fcircle(6.0, 7.0, 1.7, a);
+            pen.line_c(&[(6.0, 8.7), (4.8, 11.0)], a);
+            pen.fcircle(11.0, 7.0, 1.7, a);
+            pen.line_c(&[(11.0, 8.7), (9.8, 11.0)], a);
+            pen.lines(3.0, 17.0, &[13.5, 16.5]);
         }
         "sources" | "bibliography" => {
             pen.rect(4.0, 3.0, 9.0, 17.0, c);

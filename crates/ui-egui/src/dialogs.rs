@@ -2382,8 +2382,8 @@ fn body(app: &mut WordApp, ui: &mut Ui, d: &mut Dialog) -> bool {
             let (escape, cmd_period, cmd_delete) = ui.input(|i| {
                 (
                     i.key_pressed(egui::Key::Escape),
-                    i.modifiers.mac_cmd && i.key_pressed(egui::Key::Period),
-                    i.modifiers.mac_cmd && (i.key_pressed(egui::Key::D) || i.key_pressed(egui::Key::Backspace)),
+                    i.modifiers.command && i.key_pressed(egui::Key::Period),
+                    i.modifiers.command && (i.key_pressed(egui::Key::D) || i.key_pressed(egui::Key::Backspace)),
                 )
             });
             let answer = if escape || (mac && cmd_period) {

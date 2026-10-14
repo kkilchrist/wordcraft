@@ -1029,8 +1029,25 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line_c(&[(1.5, 10.0), (18.5, 10.0)], a);
         }
         "darkMode" => {
-            pen.fcircle(10.0, 10.0, 7.0, c);
-            pen.fcircle(13.0, 8.0, 6.0, Color32::from_rgba_unmultiplied(255, 255, 255, 230));
+            // A crescent: the outer disc minus an offset disc, outlined as one closed stroke.
+            let (ox, oy, or) = (10.0_f32, 10.0_f32, 7.0_f32);
+            let (ix, iy, ir) = (13.5_f32, 6.5_f32, 5.6_f32);
+            let mut pts: Vec<(f32, f32)> = Vec::new();
+            for i in 0..120 {
+                let t = (i as f32 * 3.0).to_radians();
+                let (x, y) = (ox + or * t.cos(), oy + or * t.sin());
+                if (x - ix).hypot(y - iy) > ir {
+                    pts.push((x, y));
+                }
+            }
+            for i in (0..120).rev() {
+                let t = (i as f32 * 3.0).to_radians();
+                let (x, y) = (ix + ir * t.cos(), iy + ir * t.sin());
+                if (x - ox).hypot(y - oy) < or {
+                    pts.push((x, y));
+                }
+            }
+            pen.closed(&pts, c);
         }
         "interfaceTheme" => {
             // A window, its right half dark: light, dark or both (follow the system).
@@ -1080,11 +1097,12 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             }
         }
         "deleteTable" => {
-            pen.rect(3.0, 3.0, 15.0, 15.0, c);
-            pen.line(&[(3.0, 9.0), (15.0, 9.0)]);
-            pen.line(&[(9.0, 3.0), (9.0, 15.0)]);
-            pen.line_c(&[(12.0, 12.0), (18.0, 18.0)], red);
-            pen.line_c(&[(18.0, 12.0), (12.0, 18.0)], red);
+            // A 2x2 table with a red cross in the corner, clear of the grid.
+            pen.rect(3.0, 3.0, 13.5, 13.5, c);
+            pen.line(&[(3.0, 8.25), (13.5, 8.25)]);
+            pen.line(&[(8.25, 3.0), (8.25, 13.5)]);
+            pen.line_c(&[(14.5, 14.5), (17.5, 17.5)], red);
+            pen.line_c(&[(17.5, 14.5), (14.5, 17.5)], red);
         }
         "merge" => {
             pen.rect(3.0, 5.0, 17.0, 15.0, c);

@@ -171,6 +171,7 @@ fn mac_dispatch(app: &mut WordApp, key: Key, m: Modifiers) -> bool {
     if user_customizes(&app.session.keymap, &combo(m, name, true)) {
         return false;
     }
+    let steps = if app.session.sel.is_collapsed() { steps } else { mac_keys::on_selection(steps) };
     for (id, params) in steps {
         let _ = app.run(id, params);
     }

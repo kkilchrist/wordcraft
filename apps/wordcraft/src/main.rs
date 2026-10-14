@@ -23,6 +23,8 @@ mod graphics;
 mod logging;
 #[cfg(target_os = "macos")]
 mod macos_menu;
+#[cfg(target_os = "macos")]
+mod macos_window;
 mod print;
 mod region;
 #[cfg(target_os = "macos")]
@@ -44,6 +46,7 @@ struct App(
     file_dialogs::Launcher,
     #[cfg(target_os = "macos")] fmv_macos_events::Inbox,
     #[cfg(target_os = "macos")] macos_menu::NativeMenu,
+    #[cfg(target_os = "macos")] macos_window::WindowDocument,
 );
 
 impl eframe::App for App {
@@ -52,6 +55,8 @@ impl eframe::App for App {
         apple_events::poll(&self.4, &mut self.0, ctx);
         #[cfg(target_os = "macos")]
         self.5.update(&mut self.0, ctx);
+        #[cfg(target_os = "macos")]
+        self.6.sync(&self.0);
         self.0.logic(ctx);
         self.3.show(frame);
         let prev = self.0.ui.window;
@@ -373,6 +378,8 @@ fn main() -> eframe::Result {
                 apple_events.connect(&cc.egui_ctx),
                 #[cfg(target_os = "macos")]
                 macos_menu::NativeMenu::new(&cc.egui_ctx),
+                #[cfg(target_os = "macos")]
+                macos_window::WindowDocument::default(),
             )))
         }),
     )

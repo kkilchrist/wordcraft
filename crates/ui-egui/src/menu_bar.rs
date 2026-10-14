@@ -272,6 +272,25 @@ impl Builder<'_> {
     }
 }
 
+/// File › Open Recent: the documents File › Home lists, by name (with the folder when two share a
+/// name).
+fn open_recent(b: &mut Builder<'_>) -> Item {
+    let paths: Vec<String> = b.app.ui.recent.iter().take(b.app.ui.recent_shown()).cloned().collect();
+    let name = |p: &str| std::path::Path::new(p).file_name().map_or_else(|| p.to_string(), |n| n.to_string_lossy().to_string());
+    let mut items = Vec::new();
+    for p in &paths {
+        let n = name(p);
+        let label = if paths.iter().filter(|q| name(q) == n).count() > 1 {
+            let folder = std::path::Path::new(p).parent().and_then(|d| d.file_name()).map(|d| d.to_string_lossy().to_string()).unwrap_or_default();
+            format!("{n} — {folder}")
+        } else {
+            n
+        };
+        items.push(b.action(label, None, Does::Run { id: "file.open".into(), params: json!({ "path": p }) }));
+    }
+    Item::Submenu { title: tl!("Open Recent").to_string(), items }
+}
+
 /// `…` after an item that asks for more before it acts (a dialog), as Mac menus write it.
 fn ellipsis(id: &str, params: &Value) -> &'static str {
     let dialog = id == "ui.dialog" || id.ends_with("Dialog") || crate::input_dialog(id, params).is_some();
@@ -317,10 +336,10 @@ impl WordApp {
 
         // File and Edit, in the order Mac apps use.
         let section = |b: &mut Builder<'_>, ids: &[&str]| -> Vec<Item> { ids.iter().filter_map(|id| b.command(id, None)).collect() };
-        let mut file = Vec::new();
+        let mut file = section(&mut b, &["file.new", "file.newFromTemplate", "file.open"]);
+        file.push(open_recent(&mut b));
         for ids in [
-            &["file.new", "file.newFromTemplate", "file.open"][..],
-            &["file.close", "file.save", "file.saveAs", "file.saveTemplate", "file.versions"],
+            &["file.close", "file.save", "file.saveAs", "file.saveTemplate", "file.versions"][..],
             &["file.share", "file.exportPdf", "file.exportPng"],
             &["file.properties", "file.protect", "file.inspect"],
             &["file.print"],
@@ -541,6 +560,22 @@ mod tests {
         assert_eq!(Chord::parse("Mod+Backspace"), None);
         assert_eq!(Chord::parse("Shift+Enter"), None);
         assert_eq!(Chord::parse(""), None);
+    }
+
+    #[test]
+    fn open_recent_lists_the_recent_documents() {
+        let mut a = app();
+        a.ui.recent = vec!["/a/Notes.docx".into(), "/b/Letter.docx".into(), "/c/Notes.docx".into()];
+        let bar = a.menu_bar();
+        let file = bar.menus.iter().find(|m| m.title == "File").expect("File");
+        let Some(Item::Submenu { items, .. }) = file.items.iter().find(|i| matches!(i, Item::Submenu { title, .. } if title == "Open Recent")) else {
+            panic!("Open Recent in {:?}", file.items);
+        };
+        let mut acts = Vec::new();
+        actions(items, &mut acts);
+        let labels: Vec<&str> = acts.iter().map(|x| x.label.as_str()).collect();
+        assert_eq!(labels, ["Notes.docx — a", "Letter.docx", "Notes.docx — c"]);
+        assert_eq!(acts.get(1).map(|x| &x.does), Some(&Does::Run { id: "file.open".into(), params: json!({"path": "/b/Letter.docx"}) }));
     }
 
     #[test]

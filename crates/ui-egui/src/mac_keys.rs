@@ -35,9 +35,18 @@ fn command_key(key: Key, shift: bool) -> Option<Vec<(&'static str, Value)>> {
     Some(vec![(id, json!({"extend": shift}))])
 }
 
+/// With text selected, the keys that select and then erase (⌘⌫, ⌃K) erase just the selection, as
+/// in every Mac text view, instead of first moving the selection's focus to the line's end.
+pub fn on_selection(steps: Vec<(&'static str, Value)>) -> Vec<(&'static str, Value)> {
+    match steps.as_slice() {
+        [(mv, _), (erase @ ("text.backspace" | "text.delete"), p)] if mv.starts_with("caret.") => vec![(*erase, p.clone())],
+        _ => steps,
+    }
+}
+
 /// The ⌃ Emacs keys. Shift extends only the movement keys; ⌃⇧K / ⌃⇧D / ⌃⇧H are left to the keymap.
 /// ⌃K selects to the line end, then erases it: at the line end that erases the paragraph break, as
-/// Cocoa does. (With a selection it erases from the selection's focus, not the whole selection.)
+/// Cocoa does. (With a selection, [`on_selection`] erases just the selection.)
 fn control_key(key: Key, shift: bool) -> Option<Vec<(&'static str, Value)>> {
     let movement = match key {
         Key::A => "caret.home",
@@ -65,6 +74,18 @@ mod tests {
 
     fn one(id: &'static str, extend: bool) -> Option<Vec<(&'static str, Value)>> {
         Some(vec![(id, json!({"extend": extend}))])
+    }
+
+    #[test]
+    fn with_a_selection_the_erasing_keys_erase_just_it() {
+        let cmd = m(true, false, false, false);
+        let ctrl = m(false, true, false, false);
+        let erase = |key, mods| mac_command(key, mods).map(on_selection);
+        assert_eq!(erase(Key::Backspace, cmd), Some(vec![("text.backspace", json!({}))]), "⌘⌫");
+        assert_eq!(erase(Key::K, ctrl), Some(vec![("text.delete", json!({}))]), "⌃K");
+        // Movement keeps its meaning.
+        assert_eq!(erase(Key::ArrowLeft, cmd), one("caret.home", false), "⌘←");
+        assert_eq!(erase(Key::D, ctrl), Some(vec![("text.delete", json!({}))]), "⌃D");
     }
 
     #[test]

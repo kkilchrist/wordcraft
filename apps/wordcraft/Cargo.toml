@@ -39,7 +39,9 @@ fmv-macos-events = "=0.1.0"
 # at this version; this adds the `NSAccessibility` bindings and, for the system accent colour
 # (`NSColor::controlAccentColor`, converted with `NSColorSpace`), the `NSColor` and `NSColorSpace` ones
 # and, to fit the title bar around the traffic lights, the window, button and view ones.
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWorkspace", "NSAccessibility", "NSApplication", "NSColor", "NSColorSpace", "objc2-core-foundation", "NSWindow", "NSButton", "NSControl", "NSView", "NSResponder"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWorkspace", "NSAccessibility", "NSApplication", "NSColor", "NSColorSpace", "objc2-core-foundation", "NSWindow", "NSButton", "NSControl", "NSView", "NSResponder", "NSDocumentController"] }
+# NSString and NSURL for the window's document and the recent documents (`macos_window`).
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL"] }
 objc2 = "0.6"
 # Closing the window must quit through NSApplication rather than by dropping the NSWindow
 # inside the AppKit run loop (see `schedule_macos_terminate`).
